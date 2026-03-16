@@ -159,19 +159,27 @@ function updatePanel(idx){
 }
 
 function showCompound(idx){
-  if(!viewer)return;
+  if(!viewer) return;
   current=idx;
   const c=compounds[idx];
   const strength=(Math.abs(c.score)-7.9)/(22.55-7.9);
-  const nBonds=Math.max(3,Math.round(3+strength*2));
+  const nBonds=Math.min(window._klvff.length,
+               Math.max(3,Math.round(3+strength*2)));
   const cylR=0.35+strength*0.20;
 
   viewer.removeAllShapes();
 
+  const atomCenterX=window._klvff.reduce((s,a)=>s+a.x,0)/window._klvff.length;
+  const atomCenterY=window._klvff.reduce((s,a)=>s+a.y,0)/window._klvff.length;
+  const atomCenterZ=window._klvff.reduce((s,a)=>s+a.z,0)/window._klvff.length;
+  const pushDist=3.0;
+  const len=Math.sqrt(atomCenterX*atomCenterX+
+                      atomCenterY*atomCenterY+
+                      atomCenterZ*atomCenterZ)||1;
   const dockCenter={
-    x:window._center.x+1.5,
-    y:window._center.y+1.0,
-    z:window._center.z+2.0
+    x:atomCenterX+(atomCenterX/len)*pushDist,
+    y:atomCenterY+(atomCenterY/len)*pushDist,
+    z:atomCenterZ+(atomCenterZ/len)*pushDist
   };
 
   window._klvff.slice(0,nBonds).forEach(function(atom){
@@ -223,23 +231,52 @@ function parsePDB(pdb){
   const coords=[];
   const seen=new Set();
   pdb.split('\n').forEach(function(line){
-    if(!line.startsWith('ATOM'))return;
+    if(line.length < 54) return;
+    if(!line.startsWith('ATOM')) return;
     try{
-      const resnum=parseInt(line.substring(22,26).trim());
-      const atom  =line.substring(12,16).trim();
-      const x     =parseFloat(line.substring(30,38).trim());
-      const y     =parseFloat(line.substring(38,46).trim());
-      const z     =parseFloat(line.substring(46,54).trim());
-      if(resnum>=16&&resnum<=20&&atom==='CA'&&!seen.has(resnum)){
-      // Grab CA and CB atoms from ALL chains of residues 16-20
-      // 2BEG has 5 chains so this gives us up to 10 attachment points
-      const chain=line.substring(21,22).trim();
-      if(resnum>=16&&resnum<=20&&atom==='CA'&&chain==='A'){
-        coords.push({x,y,z});
+      const atom  = line.substring(12,16).trim();
+      const chain = line.substring(21,22);
+      const resnum= parseInt(line.substring(22,26).trim());
+      const x     = parseFloat(line.substring(30,38).trim());
+      const y     = parseFloat(line.substring(38,46).trim());
+      const z     = parseFloat(line.substring(46,54).trim());
+
+      // Only chain A, only CA atoms, only KLVFF residues 16-20
+      // Key: one unique attachment point per residue = 5 clean cylinders
+      if(chain === 'A' &&
+         atom  === 'CA' &&
+         resnum >= 16 &&
+         resnum <= 20 &&
+         !seen.has(resnum)){
+        coords.push({x, y, z, resnum});
         seen.add(resnum);
       }
-    }catch(e){}
+    } catch(e) {}
   });
+
+  // If chain A gave nothing, fall back to any chain
+  if(coords.length === 0){
+    pdb.split('\n').forEach(function(line){
+      if(line.length < 54) return;
+      if(!line.startsWith('ATOM')) return;
+      try{
+        const atom  = line.substring(12,16).trim();
+        const resnum= parseInt(line.substring(22,26).trim());
+        const x     = parseFloat(line.substring(30,38).trim());
+        const y     = parseFloat(line.substring(38,46).trim());
+        const z     = parseFloat(line.substring(46,54).trim());
+        if(atom === 'CA' &&
+           resnum >= 16 &&
+           resnum <= 20 &&
+           !seen.has(resnum)){
+          coords.push({x, y, z, resnum});
+          seen.add(resnum);
+        }
+      } catch(e) {}
+    });
+  }
+
+  console.log('KLVFF atoms:', coords.length, coords);
   return coords;
 }
 
