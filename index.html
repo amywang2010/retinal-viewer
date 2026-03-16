@@ -163,37 +163,43 @@ function showCompound(idx){
   current=idx;
   const c=compounds[idx];
   const strength=(Math.abs(c.score)-7.9)/(22.55-7.9);
-  const nBonds=Math.max(2,Math.round(2+strength*3));
-  const cylR=0.30+strength*0.25;
+  const nBonds=Math.max(3,Math.round(3+strength*2));
+  const cylR=0.35+strength*0.20;
 
   viewer.removeAllShapes();
 
-  window._klvff.slice(0,nBonds+1).forEach(function(atom){
+  const dockCenter={
+    x:window._center.x+1.5,
+    y:window._center.y+1.0,
+    z:window._center.z+2.0
+  };
+
+  window._klvff.slice(0,nBonds).forEach(function(atom){
     viewer.addCylinder({
       start:{x:atom.x,y:atom.y,z:atom.z},
-      end:window._center,
+      end:dockCenter,
       radius:cylR,color:c.hex,opacity:1.0
     });
     viewer.addCylinder({
       start:{x:atom.x,y:atom.y,z:atom.z},
-      end:window._center,
-      radius:cylR+0.12,color:c.hex,opacity:0.30
+      end:dockCenter,
+      radius:cylR+0.10,color:c.hex,opacity:0.25
     });
     viewer.addSphere({
       center:{x:atom.x,y:atom.y,z:atom.z},
-      radius:0.55,color:c.hex,opacity:1.0
+      radius:0.50,color:c.hex,opacity:1.0
     });
   });
 
-  const coreR=0.7+strength*0.9;
+  const coreR=0.9+strength*1.0;
   viewer.addSphere({
-    center:window._center,radius:coreR,color:c.hex,opacity:1.0
+    center:dockCenter,radius:coreR,color:c.hex,opacity:1.0
   });
 
   viewer.render();
   updatePanel(idx);
-  updateOverlay(c,nBonds+1);
-  setStatus(c.name+' — '+(nBonds+1)+
+  updateOverlay(c,nBonds);
+  setStatus(c.name+' — '+nBonds+
     ' bonds to KLVFF  |  Drag to rotate  |  Scroll to zoom  |  Click to pause');
 }
 
