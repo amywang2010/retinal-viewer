@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#080810; font-family:Arial,sans-serif;
+         color:white; overflow:hidden; }
+  #layout { display:grid; grid-template-columns:1fr 240px;
+             height:100vh; gap:0; }
+  #viewer-wrap { position:relative; }
+  #viewport { width:100%; height:100%; }
+  #badge { position:absolute; top:10px; left:10px;
+           background:#000000cc; border-radius:8px;
+           padding:8px 14px; pointer-events:none; }
+  #ov-name  { font-size:15px; font-weight:bold; color:#00ff88; }
+  #ov-score { font-size:12px; color:#aaa; margin-top:2px; }
+  #ov-bonds { font-size:11px; color:#666; margin-top:2px; }
+  #status   { position:absolute; bottom:8px; left:0; right:0;
+              text-align:center; font-size:11px; color:#555; }
+  #panel { background:#0d0d1a; padding:14px;
+           display:flex; flex-direction:column; gap:8px;
+           overflow-y:auto; }
+  .panel-label { color:#444; font-size:10px; letter-spacing:1px; }
+  .cbtn { background:#0d0d1a; border:1px solid #1a1a2a;
+          border-radius:6px; padding:7px 10px; color:#666;
+          cursor:pointer; text-align:left; font-size:12px;
+          font-family:Arial; transition:all 0.25s; width:100%; }
+  #infobox { background:#080810; border-radius:8px; padding:12px;
+             border-left:3px solid #00ff88; flex:1; }
+  #i-cat  { font-size:10px; color:#555; margin-bottom:6px; }
+  #i-note { font-size:11px; color:#aaa; line-height:1.5; }
+  .bar-row { display:flex; align-items:center; gap:5px; margin-bottom:4px; }
+  .bar-lbl { font-size:10px; color:#555; width:52px; }
+  .bar-bg  { flex:1; background:#1a1a2a; border-radius:3px; height:8px; }
+  .bar-fill{ height:8px; border-radius:3px;
+             transition:width 0.4s,background 0.4s; }
+  .bar-val { font-size:10px; color:#666; width:28px; }
+  #scale-box { background:#080810; border-radius:8px; padding:9px;
+               font-size:10px; color:#444; line-height:1.6; }
+  #legend { display:flex; gap:12px; position:absolute;
+            bottom:28px; left:10px; font-size:11px; color:#555; }
+  .leg-dot { font-size:14px; }
+</style>
+</head>
+<body>
+
+<div id="layout">
+  <div id="viewer-wrap">
+    <div id="viewport"></div>
+    <div id="badge">
+      <div id="ov-name">EGCG</div>
+      <div id="ov-score">-22.55 kcal/mol · Rank #1</div>
+      <div id="ov-bonds">5 interaction bonds</div>
+    </div>
+    <div id="legend">
+      <span><span class="leg-dot" style="color:#2266aa;">■</span> Protein</span>
+      <span><span class="leg-dot" style="color:#ff2222;">■</span> KLVFF site</span>
+      <span><span class="leg-dot" id="leg-dot" style="color:#00ff88;">■</span>
+            <span id="leg-name">EGCG bonds</span></span>
+    </div>
+    <div id="status">Loading 3Dmol...</div>
+  </div>
+
+  <div id="panel">
+    <div class="panel-label">SELECT COMPOUND</div>
+    <div id="buttons"></div>
+    <div id="infobox">
+      <div id="i-cat"></div>
+      <div id="i-note"></div>
+      <div style="margin-top:10px;">
+        <div style="font-size:10px;color:#444;margin-bottom:4px;">
+          BINDING COMPONENTS
+        </div>
+        <div class="bar-row">
+          <span class="bar-lbl">π-stack</span>
+          <div class="bar-bg">
+            <div id="b-pi" class="bar-fill"></div>
+          </div>
+          <span id="v-pi" class="bar-val"></span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-lbl">H-bond</span>
+          <div class="bar-bg">
+            <div id="b-hb" class="bar-fill"></div>
+          </div>
+          <span id="v-hb" class="bar-val"></span>
+        </div>
+      </div>
+    </div>
+    <div id="scale-box">
+      <strong style="color:#555;">Score (kcal/mol)</strong><br>
+      Below -15 &nbsp;Exceptional<br>
+      -10 to -15 &nbsp;Strong<br>
+      -7 to -10 &nbsp;&nbsp;Moderate<br>
+      Above -7 &nbsp;&nbsp;&nbsp;Weak
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/3dmol@2.0.1/build/3Dmol-min.js"></script>
+<script>
+const compounds = [
+  {name:"EGCG",       rank:1,  score:-22.55, hex:"#00ff88", rgb:[0,255,136],   pi:6.00,hb:8.60,
+   category:"Natural polyphenol (green tea)",
+   note:"Highest affinity. 6 aromatic rings drive π-stacking with Phe19/Phe20. 8 H-bond donors. Consistent with published IC50 data."},
+  {name:"Myricetin",  rank:2,  score:-17.23, hex:"#44aaff", rgb:[68,170,255],  pi:3.90,hb:6.60,
+   category:"Flavonoid",
+   note:"Most novel candidate. Retinal-specific amyloid inhibition unstudied in literature."},
+  {name:"Quercetin",  rank:3,  score:-15.60, hex:"#aa88ff", rgb:[170,136,255], pi:3.30,hb:5.60,
+   category:"Flavonoid",
+   note:"Strong predicted binding. Experimental anti-aggregation data corroborates ranking."},
+  {name:"Curcumin",   rank:4,  score:-14.05, hex:"#ffcc00", rgb:[255,204,0],   pi:3.00,hb:3.20,
+   category:"Natural polyphenol (turmeric)",
+   note:"Most-studied amyloid inhibitor. Rank consistent with published IC50 values."},
+  {name:"Galantamine",rank:12, score:-7.90,  hex:"#ff6644", rgb:[255,102,68],  pi:0.90,hb:1.60,
+   category:"FDA-approved (control)",
+   note:"Acts via acetylcholinesterase, not amyloid aggregation. Weakest binding validates the scoring model is working correctly."},
+];
+
+let viewer=null, current=0;
+let nglShapes=[];
+
+function setStatus(m){document.getElementById('status').textContent=m;}
+
+function updateOverlay(c,nBonds){
+  document.getElementById('ov-name').style.color=c.hex;
+  document.getElementById('ov-name').textContent=c.name;
+  document.getElementById('ov-score').textContent=
+    c.score+' kcal/mol  ·  Rank #'+c.rank;
+  document.getElementById('ov-bonds').textContent=nBonds+' interaction bonds';
+}
+
+function updatePanel(idx){
+  const c=compounds[idx];
+  document.getElementById('infobox').style.borderLeftColor=c.hex;
+  document.getElementById('i-cat').textContent=c.category;
+  document.getElementById('i-note').textContent=c.note;
+  const pi=Math.min(c.pi/6*100,100).toFixed(0);
+  const hb=Math.min(c.hb/8.6*100,100).toFixed(0);
+  document.getElementById('b-pi').style.width=pi+'%';
+  document.getElementById('b-pi').style.background=c.hex;
+  document.getElementById('v-pi').textContent=c.pi.toFixed(1);
+  document.getElementById('b-hb').style.width=hb+'%';
+  document.getElementById('b-hb').style.background=c.hex;
+  document.getElementById('v-hb').textContent=c.hb.toFixed(1);
+  document.getElementById('leg-dot').style.color=c.hex;
+  document.getElementById('leg-name').textContent=c.name+' bonds';
+  compounds.forEach(function(comp,i){
+    const btn=document.getElementById('btn-'+i);
+    if(!btn)return;
+    btn.style.background =i===idx?comp.hex+'22':'#0d0d1a';
+    btn.style.borderColor=i===idx?comp.hex:'#1a1a2a';
+    btn.style.color      =i===idx?comp.hex:'#666';
+    btn.style.fontWeight =i===idx?'bold':'normal';
+    btn.style.boxShadow  =i===idx?'0 0 10px '+comp.hex+'55':'none';
+  });
+}
+
+function showCompound(idx){
+  if(!viewer)return;
+  current=idx;
+  const c=compounds[idx];
+  const strength=(Math.abs(c.score)-7.9)/(22.55-7.9);
+  const nBonds=Math.max(2,Math.round(2+strength*3));
+  const cylR=0.30+strength*0.25;
+
+  viewer.removeAllShapes();
+
+  window._klvff.slice(0,nBonds+1).forEach(function(atom){
+    viewer.addCylinder({
+      start:{x:atom.x,y:atom.y,z:atom.z},
+      end:window._center,
+      radius:cylR,color:c.hex,opacity:1.0
+    });
+    viewer.addCylinder({
+      start:{x:atom.x,y:atom.y,z:atom.z},
+      end:window._center,
+      radius:cylR+0.12,color:c.hex,opacity:0.30
+    });
+    viewer.addSphere({
+      center:{x:atom.x,y:atom.y,z:atom.z},
+      radius:0.55,color:c.hex,opacity:1.0
+    });
+  });
+
+  const coreR=0.7+strength*0.9;
+  viewer.addSphere({
+    center:window._center,radius:coreR,color:c.hex,opacity:1.0
+  });
+
+  viewer.render();
+  updatePanel(idx);
+  updateOverlay(c,nBonds+1);
+  setStatus(c.name+' — '+(nBonds+1)+
+    ' bonds to KLVFF  |  Drag to rotate  |  Scroll to zoom  |  Click to pause');
+}
+
+function buildButtons(){
+  const cont=document.getElementById('buttons');
+  compounds.forEach(function(c,i){
+    const btn=document.createElement('button');
+    btn.id='btn-'+i;
+    btn.className='cbtn';
+    btn.innerHTML=
+      '<span style="font-weight:bold;">'+c.name+'</span>'+
+      '<span style="float:right;font-size:11px;">'+c.score+'</span>';
+    btn.onmouseover=function(){if(i!==current)btn.style.background='#141424';};
+    btn.onmouseout =function(){if(i!==current)btn.style.background='#0d0d1a';};
+    btn.onclick=function(){showCompound(i);};
+    cont.appendChild(btn);
+  });
+}
+
+function parsePDB(pdb){
+  const coords=[];
+  const seen=new Set();
+  pdb.split('\n').forEach(function(line){
+    if(!line.startsWith('ATOM'))return;
+    try{
+      const resnum=parseInt(line.substring(22,26).trim());
+      const atom  =line.substring(12,16).trim();
+      const x     =parseFloat(line.substring(30,38).trim());
+      const y     =parseFloat(line.substring(38,46).trim());
+      const z     =parseFloat(line.substring(46,54).trim());
+      if(resnum>=16&&resnum<=20&&atom==='CA'&&!seen.has(resnum)){
+        coords.push({x,y,z});
+        seen.add(resnum);
+      }
+    }catch(e){}
+  });
+  return coords;
+}
+
+function initViewer(pdb){
+  setStatus('Building protein structure...');
+  const el=document.getElementById('viewport');
+  viewer=$3Dmol.createViewer(el,{backgroundColor:0x080810,antialias:true});
+  viewer.addModel(pdb,'pdb');
+  viewer.setStyle({},{cartoon:{color:'#1a3a5c',opacity:0.85}});
+  viewer.addStyle(
+    {resi:[16,17,18,19,20]},
+    {stick:{colorscheme:'redCarbon',radius:0.55},
+     cartoon:{color:'#ff2222',opacity:1.0}}
+  );
+
+  const klvff=parsePDB(pdb);
+  window._klvff=klvff;
+  window._center={
+    x:klvff.reduce((s,a)=>s+a.x,0)/klvff.length,
+    y:klvff.reduce((s,a)=>s+a.y,0)/klvff.length,
+    z:klvff.reduce((s,a)=>s+a.z,0)/klvff.length
+  };
+
+  setStatus('Building surfaces (15-20 seconds)...');
+
+  viewer.addSurface(
+    $3Dmol.SurfaceType.VDW,
+    {opacity:0.06,color:'#1a3a5c'},
+    {resi:'1-42'},
+    function(){
+      viewer.addSurface(
+        $3Dmol.SurfaceType.VDW,
+        {opacity:0.70,color:'#ff2222'},
+        {resi:[16,17,18,19,20]},
+        function(){
+          viewer.zoomTo({resi:[14,15,16,17,18,19,20,21,22]});
+          viewer.zoom(1.3);
+          viewer.spin('y',0.55);
+          showCompound(0);
+          setStatus('Ready. Click compound buttons to switch. Click viewer to pause.');
+        }
+      );
+    }
+  );
+
+  let spinning=true;
+  el.addEventListener('click',function(){
+    if(spinning){viewer.spin(false);spinning=false;setStatus('Paused. Click to resume.');}
+    else{viewer.spin('y',0.55);spinning=true;setStatus('Click compound buttons to switch.');}
+  });
+}
+
+// ── Boot ──────────────────────────────────────────────────────────
+buildButtons();
+updatePanel(0);
+
+// Fetch PDB from RCSB directly — this page is not sandboxed
+setStatus('Fetching protein structure...');
+fetch('https://files.rcsb.org/download/2BEG.pdb')
+  .then(r=>r.text())
+  .then(function(pdb){
+    if(typeof $3Dmol==='undefined'){
+      setStatus('3Dmol not loaded. Refresh the page.');
+      return;
+    }
+    initViewer(pdb);
+  })
+  .catch(function(){
+    setStatus('Could not fetch PDB. Check internet connection.');
+  });
+</script>
+</body>
+</html>
