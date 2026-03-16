@@ -230,7 +230,7 @@ function parsePDB(pdb){
       const x     =parseFloat(line.substring(30,38).trim());
       const y     =parseFloat(line.substring(38,46).trim());
       const z     =parseFloat(line.substring(46,54).trim());
-      if(chain==='A'&&resnum>=16&&resnum<=20&&(atom==='CA'||atom==='CB')){
+      if(resnum>=16&&resnum<=20&&(atom==='CA'||atom==='CB')){
         coords.push({x,y,z});
       }
     }catch(e){}
@@ -264,14 +264,13 @@ function initViewer(pdb){
   viewer.addSurface(
     $3Dmol.SurfaceType.VDW,
     {opacity:0.06,color:'#1a3a5c'},
-    {chain:'A', resi:'1-42'},
+    {resi:'1-42'},
     function(){
       viewer.addSurface(
         $3Dmol.SurfaceType.VDW,
         {opacity:0.70,color:'#ff2222'},
-        {chain:'A', resi:[16,17,18,19,20]},
+        {resi:[16,17,18,19,20]},
         function(){
-          viewer.setStyle({chain:['B','C','D','E']},{cartoon:{color:'#0d1f33',opacity:0.20}});
           viewer.zoomTo({chain:'A',resi:[14,15,16,17,18,19,20,21,22]});
           viewer.zoom(1.5);
           viewer.spin('y',0.55);
@@ -295,7 +294,7 @@ updatePanel(0);
 
 // Fetch PDB from RCSB directly — this page is not sandboxed
 setStatus('Fetching protein structure...');
-fetch('https://files.rcsb.org/download/2BEG.pdb')
+fetch('https://files.rcsb.org/download/1IYT.pdb')
   .then(r=>r.text())
   .then(function(pdb){
     if(typeof $3Dmol==='undefined'){
