@@ -210,15 +210,6 @@ function showCompound(idx){
       opacity: 1.0
     });
 
-    // Endpoint sphere at the compound interaction point
-    // Slightly smaller than core sphere
-    viewer.addSphere({
-      center:  endpoint,
-      radius:  0.45,
-      color:   c.hex,
-      opacity: 0.85
-    });
-
     // Residue attachment sphere — WHITE so it pops against
     // the red KLVFF site and is clearly distinct
     viewer.addSphere({
@@ -238,13 +229,22 @@ function showCompound(idx){
     });
   });
 
-  // Main compound sphere — largest, sits at center of fan
-  const coreR = 1.0 + strength * 1.2;
+// Main compound sphere — large enough to engulf all cylinder endpoints
+  // so every cylinder visibly ends inside the sphere
+  const coreR = 2.2 + strength * 1.0;
   viewer.addSphere({
     center:  baseDock,
     radius:  coreR,
     color:   c.hex,
     opacity: 1.0
+  });
+
+  // Smaller bright core inside so it has depth
+  viewer.addSphere({
+    center:  baseDock,
+    radius:  coreR * 0.5,
+    color:   '#ffffff',
+    opacity: 0.15
   });
 
   viewer.render();
