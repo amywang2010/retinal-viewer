@@ -221,7 +221,6 @@ function buildButtons(){
 
 function parsePDB(pdb){
   const coords=[];
-  const seen=new Set();
   pdb.split('\n').forEach(function(line){
     if(!line.startsWith('ATOM'))return;
     try{
@@ -230,9 +229,10 @@ function parsePDB(pdb){
       const x     =parseFloat(line.substring(30,38).trim());
       const y     =parseFloat(line.substring(38,46).trim());
       const z     =parseFloat(line.substring(46,54).trim());
-      if(resnum>=16&&resnum<=20&&atom==='CA'&&!seen.has(resnum)){
+      // Grab CA and CB atoms from ALL chains of residues 16-20
+      // 2BEG has 5 chains so this gives us up to 10 attachment points
+      if(resnum>=16&&resnum<=20&&(atom==='CA'||atom==='CB')){
         coords.push({x,y,z});
-        seen.add(resnum);
       }
     }catch(e){}
   });
@@ -253,6 +253,7 @@ function initViewer(pdb){
 
   const klvff=parsePDB(pdb);
   window._klvff=klvff;
+  console.log('KLVFF atoms found:', klvff.length, klvff);
   window._center={
     x:klvff.reduce((s,a)=>s+a.x,0)/klvff.length,
     y:klvff.reduce((s,a)=>s+a.y,0)/klvff.length,
