@@ -334,6 +334,31 @@ function initViewer(pdb){
 buildButtons();
 updatePanel(0);
 
+// DEBUG — remove after fixing
+fetch('https://files.rcsb.org/download/2BEG.pdb')
+  .then(r=>r.text())
+  .then(function(pdb){
+    const lines = pdb.split('\n').filter(function(line){
+      if(!line.startsWith('ATOM')) return false;
+      try{
+        const resnum = parseInt(line.substring(22,26).trim());
+        const atom   = line.substring(12,16).trim();
+        return resnum>=16 && resnum<=20 && atom==='CA';
+      }catch(e){return false;}
+    });
+    console.log('=== ALL CA ATOMS IN KLVFF ===');
+    console.log('Count:', lines.length);
+    lines.forEach(function(l){
+      const chain  = l.substring(21,22);
+      const resnum = l.substring(22,26).trim();
+      const x      = l.substring(30,38).trim();
+      const y      = l.substring(38,46).trim();
+      const z      = l.substring(46,54).trim();
+      console.log('Chain:'+chain+' Res:'+resnum+
+                  ' x:'+x+' y:'+y+' z:'+z);
+    });
+  });
+
 // Fetch PDB from RCSB directly — this page is not sandboxed
 setStatus('Fetching protein structure...');
 fetch('https://files.rcsb.org/download/2BEG.pdb')
